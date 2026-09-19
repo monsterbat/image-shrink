@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>照片縮小器 — 壓到指定大小以下,不裁切</title>
+<style>
+:root{
+  color-scheme: dark;
+  --bg:#1a1b1e; --panel:#232529; --panel2:#2b2e34;
+  --text:#e8e9ed; --dim:#a8aab3; --line:#3a3d45;
+  --accent:#6ea8fe; --accent-ink:#0b1220;
+  --good:#5fd39a; --warn:#f0c56a; --bad:#ff8f8f;
+  --drop:#2f3742;
+}
+@media (prefers-color-scheme: light){
+  :root{
+    color-scheme: light;
+    --bg:#f6f7f9; --panel:#ffffff; --panel2:#eef0f4;
+    --text:#1d1f24; --dim:#54585f; --line:#d3d7de;
+    --accent:#1f5fbf; --accent-ink:#ffffff;
+    --good:#116b46; --warn:#7a5300; --bad:#a32020;
+    --drop:#e6ebf2;
+  }
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}   /* .bar 的 display:flex 會蓋掉瀏覽器預設的 [hidden],要自己壓回來 */
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font:15px/1.7 -apple-system,"PingFang TC","Noto Sans TC",sans-serif;
+  padding:24px 18px 60px;
+}
+.wrap{max-width:860px;margin:0 auto}
+h1{font-size:24px;margin:0 0 4px}
+.sub{color:var(--dim);margin:0 0 22px;font-size:14px}
+
+.sizes{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+.sizes b{font-weight:600;margin-right:4px}
+.chip{
+  border:1px solid var(--line); background:var(--panel); color:var(--text);
+  padding:7px 15px; border-radius:999px; cursor:pointer; font-size:15px;
+  font-family:inherit;
+}
+.chip[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+#custom{
+  width:78px;border:1px solid var(--line);background:var(--panel);color:var(--text);
+  border-radius:8px;padding:7px 9px;font-size:15px;font-family:inherit;
+}
+
+#drop{
+  border:2px dashed var(--line); background:var(--drop); border-radius:14px;
+  padding:44px 20px; text-align:center; cursor:pointer;
+  transition:border-color .12s, background .12s;
+}
+#drop.hot{border-color:var(--accent);background:var(--panel2)}
+#drop .big{font-size:19px;font-weight:600;display:block;margin-bottom:6px}
+#drop .small{color:var(--dim);font-size:13.5px}
+
+.note{color:var(--dim);font-size:13.5px;margin:14px 2px 0}
+
+.bar{display:flex;gap:10px;align-items:center;margin:22px 0 10px;flex-wrap:wrap}
+.btn{
+  border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);
+  padding:9px 18px;border-radius:9px;cursor:pointer;font-size:15px;font-weight:600;
+  font-family:inherit;
+}
+.btn.ghost{background:transparent;color:var(--text);border-color:var(--line);font-weight:400}
+.btn:disabled{opacity:.45;cursor:default}
+
+.item{
+  background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  padding:12px 14px;margin-bottom:10px;display:flex;gap:14px;align-items:center;
+}
+.item img{width:66px;height:66px;object-fit:contain;background:var(--panel2);border-radius:8px;flex:none}
+.item .meta{flex:1;min-width:0}
+.item .name{font-weight:600;word-break:break-all;font-size:14.5px}
+.item .line2{color:var(--dim);font-size:13.5px;margin-top:3px}
+.ok{color:var(--good);font-weight:600}
+.warn{color:var(--warn);font-weight:600}
+.bad{color:var(--bad);font-weight:600}
+.item a.dl{
+  border:1px solid var(--line);background:var(--panel2);color:var(--text);
+  padding:8px 14px;border-radius:9px;text-decoration:none;font-size:14px;flex:none;
+}
+footer{color:var(--dim);font-size:13px;margin-top:34px;border-top:1px solid var(--line);padding-top:14px}
+code{background:var(--panel2);padding:1px 5px;border-radius:4px;font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>照片縮小器</h1>
+  <p class="sub">壓到你指定的大小以下。⛔ 不裁切,只等比例縮小。照片不會離開這台電腦。</p>
+
+  <div class="sizes" id="sizes">
+    <b>壓到多少以下:</b>
+    <button class="chip" data-bytes="512000">500 KB</button>
+    <button class="chip" data-bytes="1048576" aria-pressed="true">1 MB</button>
+    <button class="chip" data-bytes="2097152">2 MB</button>
+    <button class="chip" data-bytes="4194304">4 MB</button>
+    <label class="sub" style="margin:0">自訂 <input id="custom" type="number" min="20" step="10" placeholder="KB"> KB</label>
+  </div>
+
+  <div id="drop" tabindex="0" role="button">
+    <span class="big">把照片拖到這裡</span>
+    <span class="small">或點一下選檔案 · 可以一次丟很多張 · 支援 iPhone 的 HEIC、JPG、PNG</span>
+  </div>
+  <input id="file" type="file" accept="image/*,.heic,.heif" multiple hidden>
+
+  <p class="note" id="hint">丟進來就自動開始,不用按任何東西。</p>
+
+  <div class="bar" id="bar" hidden>
+    <button class="btn" id="dlAll" disabled>全部下載</button>
+    <button class="btn ghost" id="clear">清空</button>
+    <span class="sub" id="tally" style="margin:0"></span>
+  </div>
+
+  <div id="list"></div>
+
+  <footer>
+    輸出一律是 JPG(上傳網站接受度最高)。原始檔完全不會被動到。<br>
+    重新存檔會把照片裡的 GPS 位置與相機資訊一起去掉 —— 交件時這是好事。<br>
+    HEIC 解碼用 <code>heic-to 1.5.2</code>,存在本機 <code>vendor/</code>,只有丟 HEIC 進來時才載入。
+  </footer>
+
+</div>
+<script src="app.js"></script>
+</body>
+</html>
